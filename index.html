@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即時投票排行榜</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f9; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        .team-card { display: flex; align-items: center; background: white; padding: 15px; margin-bottom: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .rank { width: 30px; font-weight: bold; color: #2980b9; }
+        .info { flex: 1; margin-left: 10px; }
+        .votes { font-weight: bold; color: #e67e22; font-size: 1.2rem; }
+        button { background: #2c3e50; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+        #user-info { background: #e8f4fd; padding: 10px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align:center;">🏆 現場投票排行榜</h1>
+        <div id="user-info">載入中...</div>
+        <div id="leaderboard">讀取資料中...</div>
+    </div>
+
+    <script>
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxFopXGYcbKh3jcKoRnXN7VOVeT-xf0CvhdU_NnFeUNR67KQ4bEKrUajDIvmv5CZa66NQ/exec";
+        
+        // 從網址或本機取得密碼
+        const urlParams = new URLSearchParams(window.location.search);
+        let myToken = urlParams.get('token') || localStorage.getItem('my_voting_token');
+
+        function updateUserInfo() {
+            const infoDiv = document.getElementById('user-info');
+            if (myToken) {
+                infoDiv.innerHTML = `✅ 您已持有投票碼：<strong>${myToken}</strong> (點擊隊伍即可投票)`;
+            } else {
+                infoDiv.innerHTML = `❌ 尚未領取投票碼，請先掃描領票 QR Code`;
+            }
+        }
+
+        async function loadData() {
+            const res = await fetch(GAS_URL);
+            const data = await res.json();
+            const board = document.getElementById('leaderboard');
+            board.innerHTML = '';
+            
+            data.teams.forEach((team, i) => {
+                const div = document.createElement('div');
+                div.className = 'team-card';
+                div.innerHTML = `
+                    <div class="rank">${i+1}</div>
+                    <div class="info"><strong>${team.name}</strong></div>
+                    <div class="votes">${team.votes} 票</div>
+                    <button onclick="vote('${team.name}')">投票</button>
+                `;
+                board.appendChild(div);
+            });
+            updateUserInfo();
+        }
+
+        async function vote(teamName) {
+            if (!myToken) {
+                myToken = prompt("請輸入您的投票密碼：");
+                if (!myToken) return;
+            } else {
+                if (!confirm(`確認投票給【${teamName}】嗎？`)) return;
+            }
+
+            try {
+                const res = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ token: myToken, teamName: teamName })
+                });
+                const result = await res.json();
+                alert(result.message);
+                if (result.status === "success") {
+                    localStorage.setItem('my_voting_token', myToken); // 投票後紀錄密碼
+                    loadData();
+                }
+            } catch (e) {
+                alert("投票失敗，請檢查網路");
+            }
+        }
+
+        loadData();
+        setInterval(loadData, 5000); // 每5秒自動刷排行榜
+    </script>
+</body>
+</html>

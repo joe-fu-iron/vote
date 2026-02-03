@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>領取投票碼</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #fdfdfd; padding: 50px 20px; }
+        .box { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 350px; margin: auto; }
+        #token-display { font-size: 3rem; font-weight: bold; color: #e67e22; margin: 20px 0; }
+        button { background: #e67e22; color: white; border: none; padding: 15px 40px; border-radius: 50px; font-size: 1.2rem; cursor: pointer; }
+        button:disabled { background: #bdc3c7; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #e67e22; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; margin: 10px auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>🎟️ 歡迎參與投票</h2>
+        <p>點擊按鈕獲取投票資格</p>
+        <div id="token-display">------</div>
+        <div id="loader" class="loader"></div>
+        <button id="getBtn" onclick="requestToken()">點我領取密碼</button>
+        <p id="msg" style="color: #7f8c8d; font-size: 0.9rem; margin-top: 15px;">領取後將自動跳轉至投票頁面</p>
+    </div>
+
+    <script>
+        // 你的 GAS 網址
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxFopXGYcbKh3jcKoRnXN7VOVeT-xf0CvhdU_NnFeUNR67KQ4bEKrUajDIvmv5CZa66NQ/exec";
+
+        async function requestToken() {
+            // 防重複領取檢查
+            const savedToken = localStorage.getItem('my_voting_token');
+            if (savedToken) {
+                alert("您已領過密碼，正在為您跳轉...");
+                window.location.href = `index.html?token=${savedToken}`;
+                return;
+            }
+
+            document.getElementById('getBtn').disabled = true;
+            document.getElementById('loader').style.display = 'block';
+
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "getToken" })
+                });
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    const token = result.token;
+                    document.getElementById('token-display').innerText = token;
+                    localStorage.setItem('my_voting_token', token);
+                    
+                    // 倒數 1.5 秒後自動跳轉
+                    setTimeout(() => {
+                        window.location.href = `index.html?token=${token}`;
+                    }, 1500);
+                } else {
+                    alert(result.message);
+                    document.getElementById('getBtn').disabled = false;
+                }
+            } catch (e) {
+                alert("連線失敗，請檢查網路");
+                document.getElementById('getBtn').disabled = false;
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
